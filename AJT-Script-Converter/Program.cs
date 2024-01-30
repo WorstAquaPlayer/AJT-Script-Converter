@@ -204,11 +204,30 @@ internal class Program
             }
         }
 
-        if (gameType != GameType.GS56)
+        switch (gameType)
         {
-            throw new Exception("Game version not supported.");
+            case GameType.GS4:
+                ExtractGS4(reader, filePath);
+                break;
+            case GameType.GS56:
+                ExtractGS56(reader, filePath, instanceInfos);
+                break;
+            default:
+                throw new Exception("Unsupported file");
         }
+    }
 
+    static void ExtractGS4(DataReader reader, string filePath)
+    {
+        var binarySize = reader.ReadInt32();
+        var binaryBytes = reader.ReadBytes(binarySize);
+
+        var outBinFile = $"{filePath}.bin";
+        File.WriteAllBytes(outBinFile, binaryBytes);
+    }
+
+    static void ExtractGS56(DataReader reader, string filePath, List<InstanceInfo> instanceInfos)
+    {
         ScriptData? scriptData = null;
         var scriptSections = new List<ScriptSection>();
 
@@ -226,7 +245,6 @@ internal class Program
                 }
 
                 label = label.Substring(0, label.Length - 1);
-
                 reader.SkipPadding(4);
 
                 var dataSize = reader.ReadInt32();
@@ -257,7 +275,6 @@ internal class Program
                 }
 
                 fileName = fileName.Substring(0, fileName.Length - 1);
-
                 reader.SkipPadding(4);
 
                 scriptData = new ScriptData(reader, fileName, scriptSections);
