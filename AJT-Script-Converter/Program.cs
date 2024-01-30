@@ -26,9 +26,13 @@ internal class Program
         {
             foreach(var arg in args)
             {
-                if (arg.EndsWith(".txt"))
+                if (arg.EndsWith(".bin"))
                 {
-                    Insert(arg);
+                    Insert4(arg);
+                }
+                else if (arg.EndsWith(".txt"))
+                {
+                    Insert56(arg);
                 }
                 else
                 {
@@ -43,7 +47,51 @@ internal class Program
         Console.WriteLine("Drag and drop file(s) into the executable!");
     }
 
-    static void Insert(string filePath)
+    static void Insert4(string filePath)
+    {
+        var binaryData = File.ReadAllBytes(filePath);
+        var outFile = Path.Combine(Path.GetDirectoryName(filePath), Path.GetFileNameWithoutExtension(filePath));
+
+        using var outBinary = new BinaryFormat();
+        var writer = new DataWriter(outBinary.Stream);
+
+        writer.Write("USR\0");
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write(0);
+        writer.Write((ulong)0x30);
+        writer.Write((ulong)0x30);
+        writer.Write((ulong)0x30);
+        writer.WritePadding(0, 0x10);
+
+        var rszOffset = writer.Stream.Position;
+        writer.Write("RSZ\0");
+        writer.Write(16);
+        writer.Write(1);
+        writer.Write(2); // instanceCount
+        writer.Write(0); // userdataCount
+        writer.Write(0); // unknown
+
+        writer.Write((ulong)0x34); // temp instanceOffset
+        writer.Write((ulong)0x50); // temp dataOffset
+        writer.Write((ulong)0x50); // temp userdataOffset
+
+        writer.Write(1); // object
+
+        writer.Write((long)0); // null object
+
+        writer.Write(ScriptBinary.TypeId);
+        writer.Write(ScriptBinary.Crc);
+
+        writer.WritePadding(0, 0x10);
+
+        writer.Write(binaryData.Length);
+        writer.Write(binaryData);
+
+        outBinary.Stream.WriteTo(outFile);
+    }
+
+    static void Insert56(string filePath)
     {
         var fullText = File.ReadAllText(filePath);
         fullText = fullText.Replace("\r\n", "\n").Replace("<PAGE>\n", "<PAGE>");
@@ -224,6 +272,11 @@ internal class Program
 
         var outBinFile = $"{filePath}.bin";
         File.WriteAllBytes(outBinFile, binaryBytes);
+
+        if (reader.Stream.Position < reader.Stream.Length)
+        {
+            throw new Exception("[WARNING] Only the first section of binary data is being extracted.\nThis is unexpected and should contact the developer.");
+        }
     }
 
     static void ExtractGS56(DataReader reader, string filePath, List<InstanceInfo> instanceInfos)
